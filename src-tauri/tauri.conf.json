@@ -56,10 +56,10 @@
     "windows": [
       {
         "fullscreen": false,
-        "height": 480,
+        "height": 300,
         "resizable": true,
         "title": "hello tauri",
-        "width": 640
+        "width": 400
       }
     ]
   }

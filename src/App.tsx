@@ -1,106 +1,93 @@
-import React, { useEffect } from 'react';
+import React from 'react';
+import { invoke } from "@tauri-apps/api/tauri"
+import { emit, listen } from "@tauri-apps/api/event"
+import { isRegistered } from '@tauri-apps/api/globalShortcut';
+
 import './App.css';
 
-const LOCAL_STORAGE_HISTORY_KEY = "visitedHistory";
-const VISITED_CLASS_NAME = "visited";
-
-/**
- * 根据localStorage里的历史记录，将a附加上visited样式
- * by 菩提树下的杨过http://yjmyzz.cnblogs.com/
- */
-function setVisited() {
-  let localstorageSimuHistory = localStorage.getItem(LOCAL_STORAGE_HISTORY_KEY);
-  let simuHistory = localstorageSimuHistory ? JSON.parse(localstorageSimuHistory) : [];
-
-  //过期访问记录清理
-  const now = new Date();
-  let hasExpired = false;
-  for (let i = simuHistory.length - 1; i >= 0; i--) {
-    let item = simuHistory[i];
-    //过期的访问记录删除
-    if (now.getTime() > item.expire) {
-      simuHistory.splice(i, 1)
-      hasExpired = true
-    }
+// js原生版的fibonacci (by:菩提树下的杨过 http://yjmyzz.cnblogs.com)
+function fibonacci_js(n: number): number {
+  if (n <= 1) {
+    return 1;
   }
-  if (hasExpired) {
-    if (simuHistory.length <= 0) {
-      localStorage.removeItem(LOCAL_STORAGE_HISTORY_KEY);
-    }
-    else {
-      localStorage.setItem(LOCAL_STORAGE_HISTORY_KEY, JSON.stringify(simuHistory));
-    }
-  }
-
-  //遍历所有a，访问过的，则强制附加visited样式
-  let elements = document.getElementsByTagName('a');
-  for (let i = 0; i < elements.length; i++) {
-    for (let h = 0; h < simuHistory.length; h++) {
-      if (elements[i].href === simuHistory[h].url && elements[i].className.indexOf(VISITED_CLASS_NAME) === -1) {
-        elements[i].className += ` ${VISITED_CLASS_NAME}`;
-      }
-    }
-  }
+  return fibonacci_js(n - 2) + fibonacci_js(n - 1);
 }
-
-function bindAddHref() {
-  let elements = document.getElementsByTagName('a');
-  for (let i = 0; i < elements.length; i++) {
-    elements[i].onclick = () => {
-      addHref(elements[i].href);
-    }
-  }
-  setVisited();
-}
-
-/**
- * a链接点击后将url加入localStorage
- * @param url 
- */
-function addHref(url: String) {
-  let localstorageSimuHistory = localStorage.getItem(LOCAL_STORAGE_HISTORY_KEY);
-  let simuHistory = localstorageSimuHistory ? JSON.parse(localstorageSimuHistory) : [];
-  let found = false;
-  //访问记录过期时间设置（此处仅为示例：30秒）
-  const ttl: number = 1000 * 30;
-
-  for (let i = simuHistory.length - 1; i >= 0; i--) {
-    let item = simuHistory[i];
-    if (item.url === url) {
-      found = true;
-      //过期时间续租
-      simuHistory[i] = { "url": url, "expire": new Date().getTime() + ttl };
-      break;
-    }
-  }
-  //如果本链接不在访问列表里，则添加
-  if (!found) {
-    //过期时间(示例30秒)
-    simuHistory[simuHistory.length] = { "url": url, "expire": new Date().getTime() + ttl };
-    localStorage.setItem(LOCAL_STORAGE_HISTORY_KEY, JSON.stringify(simuHistory));
-  }
-
-  //此处只是为了方便，把所有点过的a全刷了一把，还可以再优化下（略）
-  setVisited();
-}
-
 
 function App() {
-  //在组件加载阶段，自动调用bindAddHref
-  useEffect(() => {
-    return () => {
-      console.log("DidMount");
-      bindAddHref();
-    }
-  }, []);
+
+  //js版fibonacci测试
+  let js_test = (n: number) => {
+    let begin = new Date().getTime();
+    let result = fibonacci_js(n);
+    let end = new Date().getTime();
+    console.log(`fibonacci_js(${n})\t= ${result},\t执行时间: ${end - begin} ms`);
+  }
+
+
+  //rust版fibonacci测试
+  let tauri_test = (n: number) => {
+    let begin = new Date().getTime();
+    invoke('fibonacci', { n }).then((result) => {
+      let end = new Date().getTime();
+      console.log(`fibonacci_tauri(${n})\t= ${result},\t执行时间: ${end - begin} ms`);
+    });
+  }
+
+  let hello3 = (message: String) => {
+    invoke("hello3", { msg: message }).then((message) => console.log(message))
+  }
+
+  let get_person = (name: String, age: Number) => {
+    invoke("get_person", { name, age }).then((person) => console.log(person))
+  }
+
+  let is_valid_age = (age: Number) => {
+    invoke("is_valid_age", { age })
+      .then((msg) => console.log(msg))
+      .catch((err) => console.error(err))
+  }
+
+  let async_test = () => {
+    invoke("method_1").then((result) => {
+      console.log("result:", result
+      );
+    })
+  }
+
+  let app_handle_test = () => {
+    isRegistered('CommandOrControl+U').then((msg) => {
+      console.log("msg:", msg);
+    });
+
+    invoke('app_handle_test').then((data) => {
+      console.log("data:", data);
+      isRegistered('CommandOrControl+U').then((msg) => {
+        console.log("msg:", msg);
+      })
+    })
+  }
+
   return (
     <div className="App">
       <p>
-        <a className='test' href="#1" target='_blank'>#1</a>
-        <a className='test' href="#2" target='_blank'>#2</a>
-        <a className='test' href="#3" target='_blank'>#3</a>
+        <button onClick={() => invoke('hello1')}>hello1</button>
+        <button onClick={() => invoke('hello2', { msg: "jimmy" })}>hello2</button>
+        <button onClick={() => hello3("菩提树下的杨过")}>hello3</button>
+        <br />
+        <button onClick={() => js_test(38)}>fibonacci_js</button>
+        <button onClick={() => tauri_test(38)}>fibonacci_tauri</button>
+        <br />
+        <button onClick={() => get_person('张三', 18)}>getPerson</button>
+        <button onClick={() => is_valid_age(10)}>isAgeValid-ok</button>
+        <button onClick={() => is_valid_age(-5)}>isAgeValid-err</button>
+        <br />
+        <button onClick={() => async_test()}>async-cmd</button>
+        <button onClick={() => invoke('get_window_label')}>get_window_label</button>
+        <button onClick={() => app_handle_test()}>app_handle_test</button>
+        <br />
+        <button onClick={() => invoke('query_data')}>query_data</button>
       </p>
-    </div>
+    </div >
   );
 }
 
