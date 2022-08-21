@@ -11,6 +11,7 @@
     "version": "0.1.0"
   },
   "tauri": {
+    "macOSPrivateApi": true,
     "allowlist": {
       "all": true
     },
@@ -59,7 +60,9 @@
         "height": 300,
         "resizable": true,
         "title": "hello tauri",
-        "width": 400
+        "width": 400,
+        "label": "home",
+        "alwaysOnTop": true
       }
     ]
   }
