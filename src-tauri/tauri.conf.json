@@ -62,7 +62,21 @@
         "title": "hello tauri",
         "width": 400,
         "label": "home",
-        "alwaysOnTop": true
+        "center": true,
+        "visible": false
+      },
+      {
+        "fullscreen": false,
+        "height": 124,
+        "resizable": false,
+        "title": "",
+        "width": 124,
+        "label": "splashscreen",
+        "alwaysOnTop": true,
+        "visible": true,
+        "url": "/avatar.png",
+        "center": true,
+        "decorations": false
       }
     ]
   }
