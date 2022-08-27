@@ -63,21 +63,12 @@
         "width": 400,
         "label": "home",
         "center": true,
-        "visible": false
-      },
-      {
-        "fullscreen": false,
-        "height": 124,
-        "resizable": false,
-        "title": "",
-        "width": 124,
-        "label": "splashscreen",
-        "alwaysOnTop": true,
-        "visible": true,
-        "url": "/avatar.png",
-        "center": true,
-        "decorations": false
+        "visible": true
       }
-    ]
+    ],
+    "systemTray": {
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": true
+    }
   }
 }

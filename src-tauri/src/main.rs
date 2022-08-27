@@ -3,46 +3,67 @@
   windows_subsystem = "windows"
 )]
 
-use tauri::Manager;
+use tauri::{
+  CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem,
+};
 
 fn main() {
-  tauri::Builder::default()
-    .setup(|app| {
-      let splashscreen_window = app.get_window("splashscreen").unwrap();
-      let main_window = app.get_window("home").unwrap();
-      // we perform the initialization code on a new task so the app doesn't freeze
-      tauri::async_runtime::spawn(async move {
-        // initialize your app here instead of sleeping :)
-        println!("Initializing...");
-        //等待5秒后，再显示主窗口
-        std::thread::sleep(std::time::Duration::from_secs(5));
-        println!("Done initializing.");
+  let quit = CustomMenuItem::new("quit".to_string(), "关闭窗口");
+  let hide = CustomMenuItem::new("hide".to_string(), "隐藏窗口");
+  let tray_menu = SystemTrayMenu::new()
+    .add_item(quit)
+    .add_native_item(SystemTrayMenuItem::Separator)
+    .add_item(hide);
 
-        // After it's done, close the splashscreen and display the main window
-        splashscreen_window.close().unwrap();
-        main_window.show().unwrap();
-      });
-      Ok(())
-    })
+  let system_tray = SystemTray::new().with_menu(tray_menu);
+
+  tauri::Builder::default()
+    .system_tray(system_tray)
+    .on_system_tray_event(|app, event| menu_handle(app, event))
     .run(tauri::generate_context!())
     .expect("failed to run app");
 }
 
-// #[tauri::command]
-// async fn close_splashscreen(window: tauri::Window) {
-//   // Close splashscreen
-//   if let Some(splashscreen) = window.get_window("splashscreen") {
-//     //模拟home主窗口加载慢，刻意停2秒(实际生产中可酌情去掉)
-//     std::thread::sleep(std::time::Duration::from_secs(2));
-//     splashscreen.close().unwrap();
-//   }
-//   // Show main window
-//   window.get_window("home").unwrap().show().unwrap();
-// }
-
-// fn main() {
-//   tauri::Builder::default()
-//     .invoke_handler(tauri::generate_handler![close_splashscreen])
-//     .run(tauri::generate_context!())
-//     .expect("error while running tauri application");
-// }
+fn menu_handle(app_handle: &tauri::AppHandle, event: SystemTrayEvent) {
+  match event {
+    SystemTrayEvent::LeftClick {
+      position: _,
+      size: _,
+      ..
+    } => {
+      println!("鼠标-左击");
+    }
+    SystemTrayEvent::RightClick {
+      position: _,
+      size: _,
+      ..
+    } => {
+      println!("鼠标-右击");
+    }
+    SystemTrayEvent::DoubleClick {
+      position: _,
+      size: _,
+      ..
+    } => {
+      println!("鼠标-双击");
+    }
+    SystemTrayEvent::MenuItemClick { id, .. } => match id.as_str() {
+      "quit" => {
+        std::process::exit(0);
+      }
+      "hide" => {
+        let item_handle = app_handle.tray_handle().get_item(&id);
+        let window = app_handle.get_window("home").unwrap();
+        if window.is_visible().unwrap() {
+          window.hide().unwrap();
+          item_handle.set_title("显示窗口").unwrap();
+        } else {
+          window.show().unwrap();
+          item_handle.set_title("隐藏窗口").unwrap();
+        }
+      }
+      _ => {}
+    },
+    _ => {}
+  }
+}
