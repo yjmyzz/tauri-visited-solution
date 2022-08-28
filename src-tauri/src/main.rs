@@ -11,14 +11,6 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use std::{thread, time};
 use tauri::Window;
 
-static mut FLAG: i8 = 0;
-
-#[derive(Clone, serde::Serialize)]
-struct Payload {
-  message: Vec<String>,
-  timestamp: String,
-}
-
 /**
  * 获取系统时间戳
  */
@@ -30,6 +22,18 @@ fn timestamp() -> i64 {
   let ms = since_the_epoch.as_secs() as i64 * 1000i64
     + (since_the_epoch.subsec_nanos() as f64 / 1_000_000.0) as i64;
   ms
+}
+
+#[derive(Clone, serde::Serialize)]
+struct Payload {
+  /**
+   * cpu、内存等指标数据
+   */
+  message: Vec<String>,
+  /**
+   * 系统时间戳
+   */
+  timestamp: i64,
 }
 
 /**
@@ -74,6 +78,9 @@ fn monitor() -> Vec<String> {
   monitor_message
 }
 
+//全局变量，防止多次调用init_process，每次都创建1个线程，重复触发事件
+static mut FLAG: i8 = 0;
+
 #[tauri::command]
 fn init_process(window: Window) {
   println!("init_process called");
@@ -86,15 +93,18 @@ fn init_process(window: Window) {
     std::thread::spawn(move || loop {
       window
         .emit(
+          //事件名
           "my-event",
           Payload {
             message: monitor(),
-            timestamp: timestamp().to_string(),
+            timestamp: timestamp(),
           },
         )
         .unwrap();
+      //更新全局变量标识
       FLAG = 1;
       println!("emit:{}", timestamp().to_string());
+      //1秒1次
       thread::sleep(time::Duration::from_secs(1));
     });
   }

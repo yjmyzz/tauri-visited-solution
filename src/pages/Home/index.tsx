@@ -1,24 +1,31 @@
-import { invoke } from "@tauri-apps/api/tauri";
-import { listen } from "@tauri-apps/api/event";
-import format from 'date-fns/format';
 import React from 'react';
+import { invoke } from "@tauri-apps/api/tauri";
+//监听事件
+import { listen } from "@tauri-apps/api/event";
+//用于格式化date
+import format from 'date-fns/format';
+
 import './index.css';
 
+//用于取消监听
 let unlisten: any = null
 
+//事件的消息体
 interface Payload {
     message: Array<string>,
-    timestamp: string,
+    timestamp: number,
 }
 
 class Home extends React.Component {
 
+    //初始状态
     state = {
         message: [],
         timestamp: "",
         time: ""
     }
 
+    //开始监听
     start = () => {
         invoke('init_process');
         //防止重复监听
@@ -28,18 +35,20 @@ class Home extends React.Component {
         }
 
         const start_listen = async () => {
+            //注意这里的my-event名称，要与后端保持一致
             return await listen<Payload>('my-event', (event) => {
                 const { message, timestamp } = event.payload;
                 console.log("message:", message,
                     "timestamp:", timestamp, "time:",
-                    format(new Date(Number.parseFloat(timestamp)), 'yyyy-MM-dd HH:mm:ss.SSS'));
-                this.setState({ message, timestamp, "time": format(new Date(Number.parseFloat(timestamp)), 'yyyy-MM-dd HH:mm:ss.SSS') })
+                    format(new Date(timestamp), 'yyyy-MM-dd HH:mm:ss.SSS'));
+                this.setState({ message, timestamp, "time": format(new Date(timestamp), 'yyyy-MM-dd HH:mm:ss.SSS') })
 
             });
         };
         unlisten = start_listen();
     }
 
+    //停止监听
     stop = () => {
         console.log("is_listening:", unlisten != null);
         if (unlisten != null) {
