@@ -7,6 +7,7 @@ use perf_monitor::cpu::{processor_numbers, ProcessStat, ThreadStat};
 use perf_monitor::fd::fd_count_cur;
 use perf_monitor::io::get_process_io_stats;
 use perf_monitor::mem::get_process_memory_info;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{thread, time};
 use tauri::Window;
@@ -79,16 +80,16 @@ fn monitor() -> Vec<String> {
 }
 
 //全局变量，防止多次调用init_process，每次都创建1个线程，重复触发事件
-static mut FLAG: i8 = 0;
+static FLAG: AtomicBool = AtomicBool::new(false);
 
 #[tauri::command]
 fn init_process(window: Window) {
   println!("init_process called");
-  unsafe {
-    if FLAG == 1 {
-      println!("already emit");
-      return;
-    }
+  if !FLAG.fetch_and(true, Ordering::Acquire) {
+    FLAG
+      .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |x| Some(true))
+      .unwrap();
+
     //单独起个线程，1秒钟发1次事件
     std::thread::spawn(move || loop {
       window
@@ -101,12 +102,12 @@ fn init_process(window: Window) {
           },
         )
         .unwrap();
-      //更新全局变量标识
-      FLAG = 1;
       println!("emit:{}", timestamp().to_string());
       //1秒1次
       thread::sleep(time::Duration::from_secs(1));
     });
+  } else {
+    println!("already emitted");
   }
 }
 
